@@ -93,4 +93,3 @@ python eval_local_images.py --checkpoint your/checkpoint/path --head_dir your/he
 ```
 python inference.py
 ```
-
