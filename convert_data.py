@@ -62,7 +62,9 @@ def convert_embodiment_data_to_hdf5(input_dir, output_dir):
             # Extract 7 joint positions + 1 claw status = 8 dimensions
             joint_pos = data['robot_state']['jointPos']
             claw_status = data['robot_state']['clawStatus'][0]  # clawStatus is a list with one element
-            claw_status = 3.14 if claw_status == 1 else -3.14
+            claw_status = 3.14159265 if claw_status == 1 else -3.14159265
+
+
             action = joint_pos + [claw_status]
             actions.append(action)
             qpos_list.append(action)  # qpos is the same as action at each timestep
@@ -97,10 +99,31 @@ def convert_embodiment_data_to_hdf5(input_dir, output_dir):
         # Convert to numpy arrays
         actions = np.array(actions, dtype=np.float32)  # (time_steps, 8)
         qpos_array = np.array(qpos_list, dtype=np.float32)  # (time_steps, 8)
-
-
         front_images = np.array(front_images, dtype=np.uint8)  # (time_steps, H, W, C)
         hand_images = np.array(hand_images, dtype=np.uint8)  # (time_steps, H, W, C)
+        
+        # 删除action前5帧
+        if len(actions) > 5:
+            actions = actions[5:]
+        elif len(actions) > 0:
+            # 如果序列长度小于等于5，保留至少1帧以避免空数组
+            actions = actions[-1:]  # 保留最后一帧
+        
+        # 删除qpos最后5帧
+        if len(qpos_array) > 5:
+            qpos_array = qpos_array[:-5]
+        elif len(qpos_array) > 0:
+            # 如果序列长度小于等于5，保留至少1帧以避免空数组
+            qpos_array = qpos_array[:1]  # 保留第一帧
+            
+        # 删除图像最后5帧
+        if len(front_images) > 5 and len(hand_images) > 5:
+            front_images = front_images[:-5]
+            hand_images = hand_images[:-5]
+        elif len(front_images) > 0 and len(hand_images) > 0:
+            # 如果序列长度小于等于5，保留至少1帧以避免空数组
+            front_images = front_images[:1]
+            hand_images = hand_images[:1]
         
         # Save to HDF5
         output_file = os.path.join(output_dir, f"{data_dir}.h5")
@@ -129,3 +152,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     convert_embodiment_data_to_hdf5(args.input_dir, args.output_dir)
+    

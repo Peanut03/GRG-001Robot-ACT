@@ -4,9 +4,6 @@ import torch
 import numpy as np
 from glob import glob
 
-import IPython
-e = IPython.embed
-
 def set_seed(seed):
     torch.manual_seed(seed)
     np.random.seed(seed)

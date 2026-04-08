@@ -2,8 +2,8 @@
 "backbone" = "resnet18"
 "lr_backbone" = 1e-5
 "no_encoder" = 0
-"state_dim" = 7
-"action_dim" = 7
+"state_dim" = 8
+"action_dim" = 8
 "action_horizon" = 10
 "latent_dim" = 32
 "hidden_dim" = 256
@@ -17,13 +17,13 @@
 [train]
 "seed" = 42
 "batch" = 10
-"epoch" = 5000
+"epoch" = 8000
 "kl_weight" = 10
 "lr" = 5e-5
 "weight_decay" = 1e-4
-"save_epochs" = 1000
+"save_epochs" = 2000
 
 [dataset]
-"cameras" = ['head_camera']
+"cameras" = ['front_camera', 'hand_camera']
 "full_episode" = 0
-"norm_mode" = "min_max"
+"norm_mode" = "mixed"

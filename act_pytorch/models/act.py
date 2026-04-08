@@ -7,8 +7,6 @@ import numpy as np
 from act_pytorch.models.backbone import build_backbone
 from act_pytorch.models.transformer import build_transformer, TransformerEncoder, TransformerEncoderLayer
 
-import IPython
-e = IPython.embed
 
 
 def reparametrize(mu, logvar):

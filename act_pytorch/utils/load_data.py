@@ -6,8 +6,7 @@ from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from act_pytorch.utils.train_utils import get_norm_stats
 
-import IPython
-e = IPython.embed
+
 
 class ACTDataset(Dataset):
     def __init__(self, args, norm_stats):
@@ -24,13 +23,40 @@ class ACTDataset(Dataset):
         return len(self.file_paths)
 
     def normalize(self, data, stats, prefix):
-        mode = stats.get("norm_mode", "min_max")  # 默认回退到 mean_std
+        mode = stats.get("norm_mode", "mean_std")  # 默认回退到 mean_std
         if mode == "min_max":
             # 防止除以 0，使用 1e-5 或已在 get_norm_stats 中做过的 clipping
             denom = stats[f"{prefix}_max"] - stats[f"{prefix}_min"]
             denom = np.clip(denom, 1e-2, None)
             return (data - stats[f"{prefix}_min"]) / denom
+        elif mode == "mixed":
+            # 混合归一化：前7个自由度使用meanstd，最后一个自由度使用minmax
+            if len(data.shape) == 1:
+                # 处理一维数据（如qpos）
+                normalized_data = np.zeros_like(data, dtype=np.float32)
+                # 前7个维度使用meanstd
+                for i in range(min(7, len(data))):
+                    normalized_data[i] = (data[i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
+                # 最后一个维度使用minmax（如果存在）
+                if len(data) > 7:
+                    denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
+                    denom = np.clip(denom, 1e-2, None)
+                    normalized_data[7] = (data[7] - stats[f"{prefix}_min"][0, 7]) / denom
+                return normalized_data
+            else:
+                # 处理二维数据（如action序列）
+                normalized_data = np.zeros_like(data, dtype=np.float32)
+                # 前7个维度使用meanstd
+                for i in range(min(7, data.shape[-1])):
+                    normalized_data[..., i] = (data[..., i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
+                # 最后一个维度使用minmax（如果存在）
+                if data.shape[-1] > 7:
+                    denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
+                    denom = np.clip(denom, 1e-2, None)
+                    normalized_data[..., 7] = (data[..., 7] - stats[f"{prefix}_min"][0, 7]) / denom
+                return normalized_data
         else:
+            # mean_std 模式
             return (data - stats[f"{prefix}_mean"]) / stats[f"{prefix}_std"]
     
     def __getitem__(self, idx):

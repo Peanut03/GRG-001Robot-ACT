@@ -2,8 +2,7 @@ import math
 import torch
 from torch import nn
 
-import IPython
-e = IPython.embed
+
 
 class PositionEmbeddingSine(nn.Module):
     """2D sinusoidal positional encoding"""

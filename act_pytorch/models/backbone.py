@@ -8,8 +8,7 @@ from typing import Optional, List
 
 from act_pytorch.models.position_encoding import build_position_encoding
 
-import IPython
-e = IPython.embed
+
 
 
 class NestedTensor(object):

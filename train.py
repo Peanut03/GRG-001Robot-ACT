@@ -10,8 +10,6 @@ from act_pytorch.utils.train_utils import Logger, set_seed
 from act_pytorch.utils.load_data import load_data
 from act_pytorch.policies.act_policy import ACTPolicy
 
-import IPython
-e = IPython.embed
 
 
 def make_parser():

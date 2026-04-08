@@ -5,8 +5,7 @@ import torchvision.transforms as transforms
 
 from act_pytorch.models.act import build_ACT_model_and_optimizer
 
-import IPython
-e = IPython.embed
+
 
 class ACTPolicy(nn.Module):
     def __init__(self, args):
