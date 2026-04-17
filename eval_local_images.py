@@ -176,7 +176,7 @@ def main():
         action_seq = engine.predict(head_path, hand_path, current_qpos)
         target_action = action_seq[0]
 
-        print(f"Frame {i}: Predicted Gripper State: {target_action[7]:.4f}")
+        print(f"Frame {i}: Predicted Joint States: [{', '.join([f'{x:.4f}' for x in target_action])}]")
 
         # 更新状态以便自回归测试
         current_qpos = target_action

@@ -101,6 +101,24 @@ python train.py --dataset_dir converted_data
 
 
 
+**测试websockets通信延迟**
+
+```
+python websockets_receive_delay.py #测试接收通信延迟
+python websockets_send_delay.py #测试发送通信延迟
+```
+
+
+
+**查看接收到的手臂和夹爪数据**
+
+```
+python get_arm_status.py #手臂
+python get_hand_status.py #夹爪
+```
+
+
+
 **ACT开环评估**
 
 将一条数据的head和hand图像作为输入，查看模型输出的关节数据是否正常
@@ -117,10 +135,29 @@ python eval_local_images.py --checkpoint your/checkpoint/path --head_dir your/he
 python camer_eval.py --checkpoint your/checkpoint/path
 ```
 
-**ACT闭环控制**
+**ACT开环控制**
 
 打开001机器人的数据驱动程序，更改正确的ip地址，将两个摄像头的帧图像作为输入，将模型输出的关节数据传到001机器人进行闭环控制
 
 ```
 python inference.py --checkpoint your/checkpoint/path
 ```
+
+**ACT闭环控制**
+
+```
+python inference_test.py --checkpoint your/checkpoint/path
+```
+
+
+
+密码
+
+```
+g002152
+cd /home/grg/xlm/3.0.1.3/body_control
+./operate.sh start com
+./operate.sh start data_bridge
+./operate.sh start
+```
+

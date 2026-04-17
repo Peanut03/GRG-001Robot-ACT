@@ -6,7 +6,7 @@ import websockets
 from pathlib import Path
 
 # --- 配置 ---
-ROBOT_IP = "10.1.49.9"
+ROBOT_IP = "192.168.50.83"
 WS_PORT = "19891"
 FILENAME = "data_log_correct.txt"
 

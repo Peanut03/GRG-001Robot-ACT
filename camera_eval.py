@@ -1,3 +1,4 @@
+import time
 import os
 import sys
 import torch
@@ -6,6 +7,7 @@ import numpy as np
 from PIL import Image
 from torchvision import transforms
 import argparse
+
 
 # 保持原有引用路径
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -213,12 +215,15 @@ def main():
             break
         
         # 执行推理
+        start_time = time.time()
         action_seq = engine.predict(head_frame, hand_frame, current_qpos)
+        inference_time = time.time() - start_time
         
         # 通常我们取预测序列的第一帧作为当前执行动作
         target_action = action_seq[0]
         
         print(f"Frame {frame_count}: Predicted Gripper State: {target_action[7]:.4f}")
+        print(f"Frame {frame_count}: Predicted Joint States: [{', '.join([f'{x:.4f}' for x in target_action])}], Inference Time: {inference_time*1000:.2f}ms")
         
         # 更新状态以便自回归测试
         current_qpos = target_action

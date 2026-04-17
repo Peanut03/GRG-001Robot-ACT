@@ -24,6 +24,8 @@ ROBOT_IP = "192.168.50.83"
 WS_PORT = "19891"
 WS_URL_ARM = f"ws://{ROBOT_IP}:{WS_PORT}/control_joint"
 WS_URL_HAND = f"ws://{ROBOT_IP}:{WS_PORT}/control_hand"
+WS_URL_ARM_STATUS = f"ws://{ROBOT_IP}:{WS_PORT}/arm_status"
+WS_URL_HAND_STATUS = f"ws://{ROBOT_IP}:{WS_PORT}/left_hand_status"
 
 # 首帧安全等待时间（秒）
 INITIAL_DELAY_SEC = 5.0
@@ -153,7 +155,7 @@ async def send_hand_message(ws_hand, claw_value, last_sent_time_ms, current_time
     # 根据 rundrive_test_001.py 的逻辑：
     # 如果模型输出的最后一维是负数，说明要张开夹爪，对应 clawStatus[0] == 0，发送 255
     # 如果模型输出的最后一维是正数，说明要闭合夹爪，对应 clawStatus[0] != 0，发送 0
-    claw_status = [255] if claw_value < 0 else [0]
+    claw_status = [100] if claw_value < 0 else [0]
     if (current_time_ms - last_sent_time_ms) >= HAND_INTERVAL_MS:
         message = {
             "name": ["left-0"],
@@ -287,6 +289,14 @@ async def async_main():
 
                 # 更新 qpos 为当前预测的动作（自回归）
                 current_qpos = target_action
+
+
+                if len(current_qpos) > 7 and len(target_action) > 7:
+                    input_claw = current_qpos[7]  # 当前输入的夹爪状态
+                    output_claw = target_action[7]  # 模型输出的夹爪状态
+                    
+                    
+
 
                 # 首帧安全等待
                 if is_first_frame:
