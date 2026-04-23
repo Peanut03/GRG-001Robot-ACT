@@ -2,11 +2,13 @@
 
 ## 项目介绍
 
-**V1.4版本**
+**V2.0版本**
 
-**在收集数据record.py中添加了检查摄像头是否断开的报错警告**
+**重构了data_load，排查了延迟，频率问题，act模型验证成功**
 
 
+
+**这是一个用于控制grg001机器人的ACT代码仓库，包含数据采集，数据清洗，训练，开环评估和闭环控制的代码**
 
 **⚠️注意事项**
 
@@ -16,23 +18,21 @@
 
 
 
-
-
-**这是一个用于控制grg001机器人的ACT代码仓库，包含数据采集，数据清洗，训练，开环评估和闭环控制的代码**
-
-首先启动机器人主机，选择第二个进阶选择中的第三个内核
-
-机器人主机密码及操作
+**摇操采集数据**
 
 ```
-g002152
-cd /home/grg/xlm/3.0.1.3/body_control #三个终端
-./operate.sh start com
-./operate.sh start data_bridge
-./operate.sh start
+进入第4个，倒数第3个  3.18内核
+
+密码1234
+
+cd /home/grg/ros/lylong7/new/grg7dof-alg/
+
+Source install/setup.bash
+
+roslaunch grgrobot_control grgrobot.launch
 ```
 
-然后连接到jetson orin agx
+**然后连接到jetson orin agx**
 
 ```
 #连接grg-visitor网络 密码grg166125
@@ -45,8 +45,6 @@ ssh grg@192.168.50.32
 cd /Users/act_pytorch-main/
 ```
 
-
-
 **环境依赖**
 
 可以直接使用lerobot环境，或者重新配置环境
@@ -56,11 +54,9 @@ conda activate lerobot
 conda env create -f conda_env.yaml
 ```
 
-
-
 **录制数据**
 
-先启动001机器人的主机摇操程序，确保采集设备和001机器人主机在**同一网络**下，**更改record_v3.py中的ip地址**，使用
+先启动001机器人的主机摇操程序，确保采集设备和001机器人主机在**同一网络**下，**更改record_v4.py中的ip地址**，使用
 
 ```
 v4l2-ctl --list-devices #查看摄像头编号
@@ -75,45 +71,26 @@ ffplay /dev/video（1-9）#查看正确的rgb摄像头
 更改代码中的摄像头编号，然后进行数据采集，踩下踏板开始采集，松开踏板停止采集，录制一条数据
 
 ```
-python record_v4.py #加入了摄像头断开连接到报错
+python tools/collcet_data/record_v4.py #加入了摄像头断开连接到报错
 ```
+
+
 
 
 
 **清洗数据**
 
-将数据上传到工作站
-
-```
-ssh songwei@10.1.47.59
-密码123456
-```
-
-
-
 更改data_clean.py中的root_dir为正确的采集数据地址，运行
 
 ```
-python data_clean.py 
+python tools/data_clean.py 
+#将50hz采集到数据下采样到5hz
+python tools/get_new_data.py
 ```
 
 运行后每一条数据的文件夹下应该都有data_log_correct.txt文件
 
-
-
-**验证数据及摇操复现**
-
-启动001机器人数据驱动程序，修改为正确的ip地址，然后运行
-
-```
-cd test_scripts/
-#在这个目录下放一个data_log_correct.txt的数据集
-python rundrive_test_001.py
-```
-
-可以看到机器人重现了这条数据的摇操
-
-
+使用new_data进行训练
 
 **数据转换**
 
@@ -122,17 +99,56 @@ grg001的手臂是8个自由度的（7个自由度手臂+1个自由度夹爪）�
 训练act需要将数据转换成.h5格式，运行
 
 ``` 
-pyhton convert_data.py  --input_dir your/cleaned_data/path --output_dir your/output_dir/path
+pyhton tools/convert_data.py  --input_dir your/cleaned_data/path --output_dir your/output_dir/path
 ```
+
+
+
+启动机器人主机，选择第二个进阶选择中的第三个内核
+
+**机器人主机密码及操作**
+
+```
+g002152
+cd /home/grg/xlm/3.0.1.3/body_control #三个终端
+./operate.sh start com
+./operate.sh start data_bridge
+./operate.sh start
+```
+
+
+
+**验证数据及摇操复现**
+
+启动001机器人数据驱动程序，修改为正确的ip地址，然后运行
+
+```
+cd tools/test_scripts/
+#在这个目录下放一个data_log_correct.txt的数据集
+python rundrive_test_001.py
+```
+
+可以看到机器人重现了这条数据的摇操
 
 
 
 **ACT训练**
 
-训练配置文件在**act_pytorch/configs/basic.toml**下，可以修改自由度，如果是二分类自由度采用min_max归一化，训练结果保存在**experiments**文件夹下面
+连接到服务器
 
 ```
-python train.py --dataset_dir converted_data
+#连接intranet
+ssh songwei@10.1.47.59
+密码 123456
+将数据保存到/home/space2/下
+```
+
+
+
+训练配置文件在**act_pytorch/configs/basic.toml**下，可以修改自由度，训练结果保存在**experiments**文件夹下面
+
+```
+python train.py --dataset_dir tools/converted_data
 ```
 
 
@@ -140,8 +156,8 @@ python train.py --dataset_dir converted_data
 **测试websockets通信延迟**
 
 ```
-python websockets_receive_delay.py #测试接收通信延迟
-python websockets_send_delay.py #测试发送通信延迟
+python tools/websockets_receive_delay.py #测试接收通信延迟
+python tools/websockets_send_delay.py #测试发送通信延迟
 ```
 
 
@@ -149,8 +165,8 @@ python websockets_send_delay.py #测试发送通信延迟
 **查看接收到的手臂和夹爪数据**
 
 ```
-python get_arm_status.py #手臂
-python get_hand_status.py #夹爪
+python tools/get_arm_status.py #手臂
+python tools/get_hand_status.py #夹爪
 ```
 
 
@@ -171,13 +187,7 @@ python eval_local_images.py --checkpoint your/checkpoint/path --head_dir your/he
 python camera_eval.py --checkpoint your/checkpoint/path
 ```
 
-**ACT开环控制**
-
 打开001机器人的数据驱动程序，更改正确的ip地址，将两个摄像头的帧图像作为输入，将模型输出的关节数据传到001机器人进行闭环控制
-
-```
-python inference.py --checkpoint your/checkpoint/path
-```
 
 **ACT闭环控制**
 

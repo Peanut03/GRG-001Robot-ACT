@@ -127,7 +127,7 @@ def process_and_align_teleop_data(log_file, output_file, arm_choice='both'):
 
 
 # 运行代码：可以修改 arm_choice 为 'left', 'right', 或 'both'
-root_dir = "./Enbodiment-tools_selected"
+root_dir = "./data_test"
 
 for subdir, dirs, files in os.walk(root_dir):
     if "data_log.txt" in files:
