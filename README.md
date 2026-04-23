@@ -20,6 +20,31 @@
 
 **这是一个用于控制grg001机器人的ACT代码仓库，包含数据采集，数据清洗，训练，开环评估和闭环控制的代码**
 
+首先启动机器人主机，选择第二个进阶选择中的第三个内核
+
+机器人主机密码及操作
+
+```
+g002152
+cd /home/grg/xlm/3.0.1.3/body_control #三个终端
+./operate.sh start com
+./operate.sh start data_bridge
+./operate.sh start
+```
+
+然后连接到jetson orin agx
+
+```
+#连接grg-visitor网络 密码grg166125
+ssh grg@10.1.157.161
+#连接dr.frank网络 密码Gundam00
+ssh grg@192.168.50.32
+
+密码 123456
+
+cd /Users/act_pytorch-main/
+```
+
 
 
 **环境依赖**
@@ -27,6 +52,7 @@
 可以直接使用lerobot环境，或者重新配置环境
 
 ```
+conda activate lerobot
 conda env create -f conda_env.yaml
 ```
 
@@ -49,17 +75,26 @@ ffplay /dev/video（1-9）#查看正确的rgb摄像头
 更改代码中的摄像头编号，然后进行数据采集，踩下踏板开始采集，松开踏板停止采集，录制一条数据
 
 ```
-python record_v3.py
+python record_v4.py #加入了摄像头断开连接到报错
 ```
 
 
 
 **清洗数据**
 
+将数据上传到工作站
+
+```
+ssh songwei@10.1.47.59
+密码123456
+```
+
+
+
 更改data_clean.py中的root_dir为正确的采集数据地址，运行
 
 ```
-python data_clean.py
+python data_clean.py 
 ```
 
 运行后每一条数据的文件夹下应该都有data_log_correct.txt文件
@@ -71,7 +106,8 @@ python data_clean.py
 启动001机器人数据驱动程序，修改为正确的ip地址，然后运行
 
 ```
-cd test_scripts
+cd test_scripts/
+#在这个目录下放一个data_log_correct.txt的数据集
 python rundrive_test_001.py
 ```
 
@@ -81,7 +117,7 @@ python rundrive_test_001.py
 
 **数据转换**
 
-grg001的手臂是8个自由度的（7个自由度手臂+1个自由度夹爪），值得注意的是手臂的每个关节都可以旋转到任意位置，因此前7个自由度需要使用mean_std进行归一化，而由于夹爪只有两个状态（0，255）而没有中间值，因此需要用min_max做归一化
+grg001的手臂是8个自由度的（7个自由度手臂+1个自由度夹爪），值得注意的是手臂的每个关节都可以旋转到任意位置，因此前7个自由度需要使用mean_std进行归一化，夹爪的范围在[0,255]之间，用 *2/255 -1 映射到[-1,1]。
 
 训练act需要将数据转换成.h5格式，运行
 
@@ -132,7 +168,7 @@ python eval_local_images.py --checkpoint your/checkpoint/path --head_dir your/he
 通过摄像头拍摄的图像进行开环评估，不会控制机器人
 
 ```
-python camer_eval.py --checkpoint your/checkpoint/path
+python camera_eval.py --checkpoint your/checkpoint/path
 ```
 
 **ACT开环控制**
@@ -150,16 +186,6 @@ python inference_test.py --checkpoint your/checkpoint/path
 ```
 
 
-
-机器人主机密码及操作
-
-```
-g002152
-cd /home/grg/xlm/3.0.1.3/body_control #三个终端
-./operate.sh start com
-./operate.sh start data_bridge
-./operate.sh start
-```
 
 
 
