@@ -102,10 +102,7 @@ class ACTInference:
         # 4. 反归一化
         action_unnorm = denormalize(action_pred_norm, self.norm_stats, "action")
 
-        # 5. 限制范围 (防止弧度溢出)
-        if self.norm_stats.get("norm_mode") == "min_max":
-            action_unnorm = np.clip(action_unnorm, self.norm_stats["action_min"], self.norm_stats["action_max"])
-
+        
         return action_unnorm
 
 

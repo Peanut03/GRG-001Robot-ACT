@@ -17,7 +17,7 @@
 [train]
 "seed" = 42
 "batch" = 32
-"epoch" = 8000
+"epoch" = 10000
 "kl_weight" = 10
 "lr" = 5e-5
 "weight_decay" = 1e-4
@@ -26,4 +26,4 @@
 [dataset]
 "cameras" = ['front_camera', 'hand_camera']
 "full_episode" = 0
-"norm_mode" = "mixed"
+"norm_mode" = "mean_std"
