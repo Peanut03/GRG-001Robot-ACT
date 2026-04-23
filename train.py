@@ -1,7 +1,7 @@
 import os
 import sys
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(ROOT_DIR)
+sys.path.append(os.path.join(ROOT_DIR, 'act_pytorch'))
 import argparse
 import tomli
 import torch
@@ -9,6 +9,7 @@ from tqdm import tqdm
 from act_pytorch.utils.train_utils import Logger, set_seed
 from act_pytorch.utils.load_data import load_data
 from act_pytorch.policies.act_policy import ACTPolicy
+
 
 
 
@@ -118,7 +119,8 @@ def train(args):
 def main(argv=sys.argv[1:]):
     parser = make_parser()
     args = parser.parse_args(argv)
-    with open('configs/basic.toml', 'rb') as f:
+    config_path = os.path.join(ROOT_DIR, 'act_pytorch', 'configs', 'basic.toml')
+    with open(config_path, 'rb') as f:
         _config = tomli.load(f)
         # dataset
         args.cameras = list(_config['dataset']['cameras'])
@@ -136,7 +138,7 @@ def main(argv=sys.argv[1:]):
         args.nheads = int(_config['model']['nheads'])
         args.dim_feedforward = int(_config['model']['dim_feedforward'])
         args.enc_layers = int(_config['model']['enc_layers'])
-        args.dec_layers = int(_config['model']['dec_layers'])
+        args.dec_layers = int(_config['model']['enc_layers'])
         args.dropout = float(_config['model']['dropout'])
         args.pre_norm = bool(_config['model']['pre_norm'])
         # train

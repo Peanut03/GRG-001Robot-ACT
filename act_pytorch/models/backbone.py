@@ -10,7 +10,6 @@ from act_pytorch.models.position_encoding import build_position_encoding
 
 
 
-
 class NestedTensor(object):
     def __init__(self, tensors, mask: Optional[Tensor]):
         self.tensors = tensors

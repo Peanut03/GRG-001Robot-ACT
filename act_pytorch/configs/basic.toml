@@ -16,7 +16,7 @@
 
 [train]
 "seed" = 42
-"batch" = 10
+"batch" = 32
 "epoch" = 8000
 "kl_weight" = 10
 "lr" = 5e-5

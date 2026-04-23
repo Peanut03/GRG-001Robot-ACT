@@ -40,76 +40,25 @@ JOINT_TOLERANCE_RAD = 0.001
 
 # --- 统一归一化工具函数 ---
 def normalize(data, stats, prefix):
-    mode = stats.get("norm_mode", "mean_std")
     data = np.array(data, dtype=np.float32)
-    if mode == "min_max":
-        # 对应 train_utils 里的计算方式
-        denom = stats[f"{prefix}_max"] - stats[f"{prefix}_min"]
-        denom = np.clip(denom, 1e-2, None)  # 防止除零
-        return (data - stats[f"{prefix}_min"]) / denom
-    elif mode == "mixed":
-        # 混合归一化：前7个自由度使用meanstd，最后一个使用minmax
-        if len(data.shape) == 1:
-            normalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd
-            for i in range(min(7, len(data))):
-                normalized_data[i] = (data[i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
-            # 最后一个维度使用minmax（如果存在）
-            if len(data) > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                normalized_data[7] = (data[7] - stats[f"{prefix}_min"][0, 7]) / denom
-            return normalized_data
-        else:
-            normalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd
-            for i in range(min(7, data.shape[-1])):
-                normalized_data[..., i] = (data[..., i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
-            # 最后一个维度使用minmax（如果存在）
-            if data.shape[-1] > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                normalized_data[..., 7] = (data[..., 7] - stats[f"{prefix}_min"][0, 7]) / denom
-            return normalized_data
-    else:
-        # mean_std 模式
-        return (data - stats[f"{prefix}_mean"]) / stats[f"{prefix}_std"]
+    normalized_data = np.zeros_like(data, dtype=np.float32)
+    
+    # 前7个维度使用meanstd，最后一个维度使用*2/255.0 - 1
+    normalized_data[..., :7] = (data[..., :7] - stats[f"{prefix}_mean"][0, :7]) / stats[f"{prefix}_std"][0, :7]
+    normalized_data[..., -1] = data[..., -1] * 2 / 255.0 - 1
+    
+    return normalized_data
 
 
 def denormalize(data, stats, prefix):
-    mode = stats.get("norm_mode", "mean_std")
     data = np.array(data, dtype=np.float32)
-    if mode == "min_max":
-        denom = stats[f"{prefix}_max"] - stats[f"{prefix}_min"]
-        denom = np.clip(denom, 1e-2, None)
-        return data * denom + stats[f"{prefix}_min"]
-    elif mode == "mixed":
-        # 对应的反归一化：前7个自由度使用meanstd，最后一个使用minmax
-        if len(data.shape) == 1:
-            denormalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd反归一化
-            for i in range(min(7, len(data))):
-                denormalized_data[i] = data[i] * stats[f"{prefix}_std"][0, i] + stats[f"{prefix}_mean"][0, i]
-            # 最后一个维度使用minmax反归一化（如果存在）
-            if len(data) > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                denormalized_data[7] = data[7] * denom + stats[f"{prefix}_min"][0, 7]
-            return denormalized_data
-        else:
-            denormalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd反归一化
-            for i in range(min(7, data.shape[-1])):
-                denormalized_data[..., i] = data[..., i] * stats[f"{prefix}_std"][0, i] + stats[f"{prefix}_mean"][0, i]
-            # 最后一个维度使用minmax反归一化（如果存在）
-            if data.shape[-1] > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                denormalized_data[..., 7] = data[..., 7] * denom + stats[f"{prefix}_min"][0, 7]
-            return denormalized_data
-    else:
-        # mean_std 模式
-        return data * stats[f"{prefix}_std"] + stats[f"{prefix}_mean"]
+    denormalized_data = np.zeros_like(data, dtype=np.float32)
+    
+    # 前7个维度使用meanstd反归一化，最后一个维度使用反向计算
+    denormalized_data[..., :7] = data[..., :7] * stats[f"{prefix}_std"][0, :7] + stats[f"{prefix}_mean"][0, :7]
+    denormalized_data[..., -1] = (data[..., -1] + 1) * 255.0 / 2
+    
+    return denormalized_data
 # ------------------------------
 
 def rad_to_deg(rad):
@@ -157,10 +106,8 @@ async def send_arm_message(ws_arm, joint_pos_rad):
     await asyncio.sleep(0.001)
 
 async def send_hand_message(ws_hand, claw_value, last_sent_time_ms, current_time_ms):
-    # 根据 rundrive_test_001.py 的逻辑：
-    # 如果模型输出的最后一维是负数，说明要张开夹爪，对应 clawStatus[0] == 0，发送 255
-    # 如果模型输出的最后一维是正数，说明要闭合夹爪，对应 clawStatus[0] != 0，发送 0
-    claw_status = [255] if claw_value < 0.0 else [0]
+    # 直接发送输入的 claw_value 数值
+    claw_status = [int(claw_value)] if not isinstance(claw_value, list) else claw_value
     if (current_time_ms - last_sent_time_ms) >= HAND_INTERVAL_MS:
         message = {
             "name": ["left-0"],
@@ -175,7 +122,6 @@ async def send_hand_message(ws_hand, claw_value, last_sent_time_ms, current_time
     else:
         await asyncio.sleep(0.001)
         return last_sent_time_ms
-
 
 async def receive_arm_status_continuous(ws_arm_status, current_state, stop_event):
     """持续接收手臂状态"""

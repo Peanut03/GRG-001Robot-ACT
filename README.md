@@ -151,13 +151,15 @@ python inference_test.py --checkpoint your/checkpoint/path
 
 
 
-密码
+机器人主机密码及操作
 
 ```
 g002152
-cd /home/grg/xlm/3.0.1.3/body_control
+cd /home/grg/xlm/3.0.1.3/body_control #三个终端
 ./operate.sh start com
 ./operate.sh start data_bridge
 ./operate.sh start
 ```
+
+
 

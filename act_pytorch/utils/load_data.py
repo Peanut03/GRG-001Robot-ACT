@@ -21,43 +21,6 @@ class ACTDataset(Dataset):
 
     def __len__(self):
         return len(self.file_paths)
-
-    def normalize(self, data, stats, prefix):
-        mode = stats.get("norm_mode", "mean_std")  # 默认回退到 mean_std
-        if mode == "min_max":
-            # 防止除以 0，使用 1e-5 或已在 get_norm_stats 中做过的 clipping
-            denom = stats[f"{prefix}_max"] - stats[f"{prefix}_min"]
-            denom = np.clip(denom, 1e-2, None)
-            return (data - stats[f"{prefix}_min"]) / denom
-        elif mode == "mixed":
-            # 混合归一化：前7个自由度使用meanstd，最后一个自由度使用minmax
-            if len(data.shape) == 1:
-                # 处理一维数据（如qpos）
-                normalized_data = np.zeros_like(data, dtype=np.float32)
-                # 前7个维度使用meanstd
-                for i in range(min(7, len(data))):
-                    normalized_data[i] = (data[i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
-                # 最后一个维度使用minmax（如果存在）
-                if len(data) > 7:
-                    denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                    denom = np.clip(denom, 1e-2, None)
-                    normalized_data[7] = (data[7] - stats[f"{prefix}_min"][0, 7]) / denom
-                return normalized_data
-            else:
-                # 处理二维数据（如action序列）
-                normalized_data = np.zeros_like(data, dtype=np.float32)
-                # 前7个维度使用meanstd
-                for i in range(min(7, data.shape[-1])):
-                    normalized_data[..., i] = (data[..., i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
-                # 最后一个维度使用minmax（如果存在）
-                if data.shape[-1] > 7:
-                    denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                    denom = np.clip(denom, 1e-2, None)
-                    normalized_data[..., 7] = (data[..., 7] - stats[f"{prefix}_min"][0, 7]) / denom
-                return normalized_data
-        else:
-            # mean_std 模式
-            return (data - stats[f"{prefix}_mean"]) / stats[f"{prefix}_std"]
     
     def __getitem__(self, idx):
         path = self.file_paths[idx]
@@ -75,8 +38,21 @@ class ACTDataset(Dataset):
             # concatenate images
             image = np.stack(images, axis=0)  # (num_camera, h, w, c)
             # normalize actions and joint positions
-            action = self.normalize(action, self.norm_stats, "action").squeeze()
-            qpos = self.normalize(qpos, self.norm_stats, "qpos").squeeze()
+            # 前7个维度做mean_std标准化，最后一个维度做*2/255.0 - 1归一化
+            action_processed = np.zeros_like(action)
+            qpos_processed = np.zeros_like(qpos)
+            
+            # 处理action: 前7个维度用mean_std，最后一个维度用*2/255.0 - 1
+            # 注意：norm_stats中的mean和std形状是(1, dim)，所以需要用[:, :7]来索引
+            action_processed[:, :7] = (action[:, :7] - self.norm_stats["action_mean"][0, :7]) / self.norm_stats["action_std"][0, :7]
+            action_processed[:, -1] = action[:, -1] * 2 / 255.0 - 1
+            
+            # 处理qpos: 前7个维度用mean_std，最后一个维度用*2/255.0 - 1
+            qpos_processed[:7] = (qpos[:7] - self.norm_stats["qpos_mean"][0, :7]) / self.norm_stats["qpos_std"][0, :7]
+            qpos_processed[-1] = qpos[-1] * 2 / 255.0 - 1
+            
+            action = action_processed.squeeze()
+            qpos = qpos_processed.squeeze()
             # action sequence zero padding
             zero_pad = np.zeros((self.num_queries - 1, action.shape[1]), dtype=np.float32)
             action = np.concatenate([action, zero_pad], axis=0)
@@ -105,7 +81,7 @@ def load_data(args):
         batch_size=args.batch,
         shuffle=True,
         pin_memory=True,
-        num_workers=8,
+        num_workers=16,
         prefetch_factor=1
     )
     return dataloader, norm_stats

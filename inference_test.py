@@ -28,6 +28,9 @@ WS_URL_HAND = f"ws://{ROBOT_IP}:{WS_PORT}/control_hand"
 WS_URL_ARM_STATUS = f"ws://{ROBOT_IP}:{WS_PORT}/arm_status"
 WS_URL_HAND_STATUS = f"ws://{ROBOT_IP}:{WS_PORT}/left_hand_status"
 
+INITIAL_ARM_ACTION_DEG = [-95, 3.5, 65, -112, -33, -63, 90]
+INITIAL_HAND_ACTION = [0]
+
 # 首帧安全等待时间（秒）
 INITIAL_DELAY_SEC = 5.0
 
@@ -37,77 +40,28 @@ HAND_INTERVAL_MS = 1000.0 / HAND_MAX_FREQ_HZ
 
 # --- 统一归一化工具函数 ---
 def normalize(data, stats, prefix):
-    mode = stats.get("norm_mode", "mean_std")
     data = np.array(data, dtype=np.float32)
-    if mode == "min_max":
-        # 对应 train_utils 里的计算方式
-        denom = stats[f"{prefix}_max"] - stats[f"{prefix}_min"]
-        denom = np.clip(denom, 1e-2, None)  # 防止除零
-        return (data - stats[f"{prefix}_min"]) / denom
-    elif mode == "mixed":
-        # 混合归一化：前7个自由度使用meanstd，最后一个使用minmax
-        if len(data.shape) == 1:
-            normalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd
-            for i in range(min(7, len(data))):
-                normalized_data[i] = (data[i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
-            # 最后一个维度使用minmax（如果存在）
-            if len(data) > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                normalized_data[7] = (data[7] - stats[f"{prefix}_min"][0, 7]) / denom
-            return normalized_data
-        else:
-            normalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd
-            for i in range(min(7, data.shape[-1])):
-                normalized_data[..., i] = (data[..., i] - stats[f"{prefix}_mean"][0, i]) / stats[f"{prefix}_std"][0, i]
-            # 最后一个维度使用minmax（如果存在）
-            if data.shape[-1] > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                normalized_data[..., 7] = (data[..., 7] - stats[f"{prefix}_min"][0, 7]) / denom
-            return normalized_data
-    else:
-        # mean_std 模式
-        return (data - stats[f"{prefix}_mean"]) / stats[f"{prefix}_std"]
+    normalized_data = np.zeros_like(data, dtype=np.float32)
+    
+    # 前7个维度使用meanstd，最后一个维度使用*2/255.0 - 1
+    normalized_data[..., :7] = (data[..., :7] - stats[f"{prefix}_mean"][0, :7]) / stats[f"{prefix}_std"][0, :7]
+    normalized_data[..., -1] = data[..., -1] * 2 / 255.0 - 1
+    
+    return normalized_data
 
 
 def denormalize(data, stats, prefix):
-    mode = stats.get("norm_mode", "mean_std")
     data = np.array(data, dtype=np.float32)
-    if mode == "min_max":
-        denom = stats[f"{prefix}_max"] - stats[f"{prefix}_min"]
-        denom = np.clip(denom, 1e-2, None)
-        return data * denom + stats[f"{prefix}_min"]
-    elif mode == "mixed":
-        # 对应的反归一化：前7个自由度使用meanstd，最后一个使用minmax
-        if len(data.shape) == 1:
-            denormalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd反归一化
-            for i in range(min(7, len(data))):
-                denormalized_data[i] = data[i] * stats[f"{prefix}_std"][0, i] + stats[f"{prefix}_mean"][0, i]
-            # 最后一个维度使用minmax反归一化（如果存在）
-            if len(data) > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                denormalized_data[7] = data[7] * denom + stats[f"{prefix}_min"][0, 7]
-            return denormalized_data
-        else:
-            denormalized_data = np.zeros_like(data, dtype=np.float32)
-            # 前7个维度使用meanstd反归一化
-            for i in range(min(7, data.shape[-1])):
-                denormalized_data[..., i] = data[..., i] * stats[f"{prefix}_std"][0, i] + stats[f"{prefix}_mean"][0, i]
-            # 最后一个维度使用minmax反归一化（如果存在）
-            if data.shape[-1] > 7:
-                denom = stats[f"{prefix}_max"][0, 7] - stats[f"{prefix}_min"][0, 7]
-                denom = np.clip(denom, 1e-2, None)
-                denormalized_data[..., 7] = data[..., 7] * denom + stats[f"{prefix}_min"][0, 7]
-            return denormalized_data
-    else:
-        # mean_std 模式
-        return data * stats[f"{prefix}_std"] + stats[f"{prefix}_mean"]
-# ------------------------------
+    denormalized_data = np.zeros_like(data, dtype=np.float32)
+    
+    # 前7个维度使用meanstd反归一化，最后一个维度使用反向计算
+    denormalized_data[..., :7] = data[..., :7] * stats[f"{prefix}_std"][0, :7] + stats[f"{prefix}_mean"][0, :7]
+    denormalized_data[..., -1] = (data[..., -1] + 1) * 255.0 / 2
+    # 确保最后一个维度的值在[0,255]之间的正整数
+    denormalized_data[..., -1] = np.clip(denormalized_data[..., -1], 0, 255)
+    denormalized_data[..., -1] = np.round(denormalized_data[..., -1])
+    
+    return denormalized_data
 
 def rad_to_deg(rad):
     return math.degrees(rad)
@@ -132,7 +86,7 @@ def get_image_tensor_from_cv2(cv2_image):
         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     return preprocess(pil_image)
-
+# ------------------------------
 # --- 发送函数 ---
 async def send_arm_message(ws_arm, joint_pos_rad):
     if len(joint_pos_rad) < 7:
@@ -154,10 +108,8 @@ async def send_arm_message(ws_arm, joint_pos_rad):
     await asyncio.sleep(0.001)
 
 async def send_hand_message(ws_hand, claw_value, last_sent_time_ms, current_time_ms):
-    # 根据 rundrive_test_001.py 的逻辑：
-    # 如果模型输出的最后一维是负数，说明要张开夹爪，对应 clawStatus[0] == 0，发送 255
-    # 如果模型输出的最后一维是正数，说明要闭合夹爪，对应 clawStatus[0] != 0，发送 0
-    claw_status = [255] if claw_value < 0.0 else [0]
+    # 直接发送输入的 claw_value 数值
+    claw_status = [int(claw_value)] if not isinstance(claw_value, list) else claw_value
     if (current_time_ms - last_sent_time_ms) >= HAND_INTERVAL_MS:
         message = {
             "name": ["left-0"],
@@ -226,12 +178,7 @@ async def receive_hand_status_continuous(ws_hand_status, current_state, stop_eve
             
             if 'position' in hand_data and len(hand_data['position']) > 0:
                 claw_pos = hand_data['position'][0]
-                if claw_pos == 0:
-                    claw_normalized = -math.pi
-                elif claw_pos == 255:
-                    claw_normalized = math.pi
-                else:
-                    claw_normalized = -math.pi + (claw_pos / 255.0) * (2 * math.pi)
+                claw_normalized = claw_pos
                 current_state['hand'] = [claw_normalized]
                 # print(f"✅ 夹爪状态已更新: {claw_normalized:.4f}")
         except asyncio.TimeoutError:
@@ -290,9 +237,6 @@ class ACTInference:
         # 4. 反归一化动作 - 使用统一的反归一化函数
         action_unnorm = denormalize(action_pred_norm, self.norm_stats, "action")
 
-        # 5. 限制范围 (防止弧度溢出)
-        if self.norm_stats.get("norm_mode") == "min_max":
-            action_unnorm = np.clip(action_unnorm, self.norm_stats["action_min"], self.norm_stats["action_max"])
 
         return action_unnorm
 
@@ -329,7 +273,7 @@ async def async_main():
         ):
             print("✅ 所有 WebSocket 连接成功！")
             
-            current_state = {'arm': [0.0] * 7, 'hand': [3.14159]}
+            current_state = {'arm': [0.0] * 7, 'hand': [0]}
             stop_event = asyncio.Event()
             
             # 启动持续接收任务
@@ -374,12 +318,19 @@ async def async_main():
                     
                     # 3. 发送控制指令
                     current_time_ms = time.time() * 1000
+                    # 首帧发送固定动作
+                    if is_first_frame:
+                        target_arm_action = [math.radians(deg) for deg in INITIAL_ARM_ACTION_DEG]
+                        target_hand_action = INITIAL_HAND_ACTION[0]
+                    else:
+                        target_arm_action = target_action[:7]
+                        target_hand_action = target_action[7]
                     
                     # 使用 asyncio.create_task 并发发送，但注意 await 顺序以控制时序
-                    send_arm_task = asyncio.create_task(send_arm_message(ws_arm, target_action[:7]))
+                    send_arm_task = asyncio.create_task(send_arm_message(ws_arm, target_arm_action))
                     new_hand_time = await send_hand_message(
                         ws_hand, 
-                        target_action[7], 
+                        target_hand_action, 
                         last_hand_sent_time_ms, 
                         current_time_ms
                     )
