@@ -145,7 +145,7 @@ ssh songwei@10.1.47.59
 
 
 
-训练配置文件在**act_pytorch/configs/basic.toml**下，可以修改自由度，训练结果保存在**experiments**文件夹下面
+训练配置文件在**act_pytorch/configs/basic.toml**下，可以修改自由度，训练结果保存在**checkpoints**文件夹下面
 
 ```
 python train.py --dataset_dir tools/converted_data
