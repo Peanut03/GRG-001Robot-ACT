@@ -141,11 +141,15 @@ python rundrive_test_001.py
 ssh songwei@10.1.47.59
 密码 123456
 将数据保存到/home/space2/下
+#激活环境
+conda activate lerebot
+#创建experiments文件夹
+mkdir experiments
 ```
 
 
 
-训练配置文件在**act_pytorch/configs/basic.toml**下，可以修改自由度，训练结果保存在**checkpoints**文件夹下面
+训练配置文件在**act_pytorch/configs/basic.toml**下，可以修改自由度，训练结果保存在experiments文件夹下面
 
 ```
 python train.py --dataset_dir tools/converted_data
