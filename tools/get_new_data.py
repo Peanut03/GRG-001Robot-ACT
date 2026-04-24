@@ -12,7 +12,7 @@ def process_data_folders(interval=8):
     """
     
     # 源数据目录和目标数据目录
-    data_dir = Path("data")
+    data_dir = Path("collect_data")
     new_data_dir = Path("data_new")
     
     # 创建新的data_new目录

@@ -145,7 +145,7 @@ def convert_embodiment_data_to_hdf5(input_dir, output_dir):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Convert embodiment data to HDF5 format")
-    parser.add_argument("--input_dir", type=str, default="Enbodiment-tools_selected", 
+    parser.add_argument("--input_dir", type=str, default="data_new", 
                         help="Input directory containing embodiment data")
     parser.add_argument("--output_dir", type=str, default="converted_data", 
                         help="Output directory for HDF5 files")
