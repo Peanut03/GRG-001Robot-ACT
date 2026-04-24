@@ -81,7 +81,7 @@ async def send_hand_message(ws, robot_state):
     if not claw_status:
         return
 
-    claw_status = [255] if claw_status[0] == 0 else [0]
+    claw_status = claw_status[0]
 
     names = [f"left-{i}" for i in range(len(claw_status))]
     names = ["left-0"]
@@ -137,16 +137,8 @@ async def simulate_robot():
 
                 # 手臂无频率限制，每帧必发
                 tasks.append(send_arm_message(ws_arm, robot_state))
-
-                # [核心逻辑] 夹爪 5Hz 降采样逻辑
-                # 判断：当前日志时间戳 - 上次发送夹爪的日志时间戳 >= 200ms
-                if (current_time_ms - last_hand_sent_time_ms) >= HAND_INTERVAL_MS:
-                    tasks.append(send_hand_message(ws_hand, robot_state))
-                    last_hand_sent_time_ms = current_time_ms  # 更新最后一次发送的时间戳
-                else:
-                    # 距离上次发送不足 200ms，直接丢弃该帧的夹爪数据（不加入 tasks）
-                    pass
-
+                tasks.append(send_hand_message(ws_hand, robot_state))
+                    
                     # 3. 并行执行准备好的发送任务
                 await asyncio.gather(*tasks)
 

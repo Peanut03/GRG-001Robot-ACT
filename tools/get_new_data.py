@@ -114,5 +114,5 @@ def process_data_folders(interval=8):
 if __name__ == "__main__":
     # 在这里修改interval参数来设置采样间隔
     # 例如：interval=5 表示每5张取1张，interval=10 表示每10张取1张
-    INTERVAL = 15
+    INTERVAL = 10
     process_data_folders(interval=INTERVAL)

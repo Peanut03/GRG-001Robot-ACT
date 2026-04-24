@@ -27,10 +27,12 @@
 
 cd /home/grg/ros/lylong7/new/grg7dof-alg/
 
-Source install/setup.bash
+source install/setup.bash
 
 roslaunch grgrobot_control grgrobot.launch
 ```
+
+
 
 **然后连接到jetson orin agx**
 
@@ -40,7 +42,9 @@ ssh grg@10.1.157.161
 #连接dr.frank网络 密码Gundam00
 ssh grg@192.168.50.32
 
+
 密码 123456
+sudo su 密码123456
 
 cd /Users/act_pytorch-main/
 ```
@@ -51,12 +55,13 @@ cd /Users/act_pytorch-main/
 
 ```
 conda activate lerobot
-conda env create -f conda_env.yaml
 ```
+
+
 
 **录制数据**
 
-先启动001机器人的主机摇操程序，确保采集设备和001机器人主机在**同一网络**下，**更改record_v4.py中的ip地址**，使用
+先启动001机器人的主机摇操程序，确保采集设备和001机器人主机在**同一网络**下，**更改record_v4.py中的ip地址**，ip为**192.168.50.83**，使用
 
 ```
 v4l2-ctl --list-devices #查看摄像头编号
@@ -71,7 +76,8 @@ ffplay /dev/video（1-9）#查看正确的rgb摄像头
 更改代码中的摄像头编号，然后进行数据采集，踩下踏板开始采集，松开踏板停止采集，录制一条数据
 
 ```
-python tools/collcet_data/record_v4.py #加入了摄像头断开连接到报错
+cd tools/collect_data
+python record_v4.py #加入了摄像头断开连接到报错
 ```
 
 
@@ -92,6 +98,8 @@ python tools/get_new_data.py
 
 使用new_data进行训练
 
+
+
 **数据转换**
 
 grg001的手臂是8个自由度的（7个自由度手臂+1个自由度夹爪），值得注意的是手臂的每个关节都可以旋转到任意位置，因此前7个自由度需要使用mean_std进行归一化，夹爪的范围在[0,255]之间，用 *2/255 -1 映射到[-1,1]。
@@ -99,7 +107,8 @@ grg001的手臂是8个自由度的（7个自由度手臂+1个自由度夹爪）�
 训练act需要将数据转换成.h5格式，运行
 
 ``` 
-pyhton tools/convert_data.py  --input_dir your/cleaned_data/path --output_dir your/output_dir/path
+cd tools/
+pyhton convert_data.py  --input_dir your/cleaned_data/path 
 ```
 
 
@@ -110,7 +119,7 @@ pyhton tools/convert_data.py  --input_dir your/cleaned_data/path --output_dir yo
 
 ```
 g002152
-cd /home/grg/xlm/3.0.1.3/body_control #三个终端
+cd /home/grg/xlm/3.0.1.3/body_control #三个终端 su 密码g002152
 ./operate.sh start com
 ./operate.sh start data_bridge
 ./operate.sh start
@@ -120,7 +129,7 @@ cd /home/grg/xlm/3.0.1.3/body_control #三个终端
 
 **验证数据及摇操复现**
 
-启动001机器人数据驱动程序，修改为正确的ip地址，然后运行
+启动001机器人数据驱动程序，修改为正确的ip地址，然后运行，ip为**192.168.50.83**
 
 ```
 cd tools/test_scripts/
